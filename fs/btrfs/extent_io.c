@@ -6,6 +6,7 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/page-flags.h>
+#include <linux/rmap.h>
 #include <linux/sched/mm.h>
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
@@ -299,6 +300,25 @@ static noinline void unlock_delalloc_folio(const struct inode *inode,
 				PAGE_UNLOCK);
 }
 
+#ifdef CONFIG_BTRFS_DEBUG
+/*
+ * Writeback must write-protect a folio when locking it for IO, before
+ * anything consumes its data (zeroing, inline copy, compression,
+ * checksumming). If this fails, then an mmap writer would be able to
+ * modify the data concurrently while we need it to be stable.
+ */
+void btrfs_check_folio_write_protected(struct folio *folio)
+{
+	if (folio_mkclean(folio)) {
+		const struct btrfs_inode *inode = BTRFS_I(folio->mapping->host);
+
+		DEBUG_WARN("writable mmap PTEs, root %llu ino %llu pos %llu order %u",
+			   btrfs_root_id(inode->root), btrfs_ino(inode), folio_pos(folio),
+			   folio_order(folio));
+	}
+}
+#endif
+
 static noinline int lock_delalloc_folios(struct inode *inode,
 					 struct folio *locked_folio,
 					 u64 start, u64 end)
@@ -332,6 +352,8 @@ static noinline int lock_delalloc_folios(struct inode *inode,
 				folio_unlock(folio);
 				goto out;
 			}
+			/* Locked for writeback; revoke writable mmap PTEs before using the data. */
+			folio_mkclean(folio);
 			range_start = max_t(u64, folio_pos(folio), start);
 			range_len = min_t(u64, folio_end(folio), end + 1) - range_start;
 			btrfs_folio_set_lock(fs_info, folio, range_start, range_len);
@@ -1725,6 +1747,13 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 
 	ASSERT(start >= folio_start && end <= folio_end);
 
+	/*
+	 * We are about to checksum and write out the data, so it must not be
+	 * mmap writeable, or we could corrupt the data and end up with invalid
+	 * checksums.
+	 */
+	btrfs_check_folio_write_protected(folio);
+
 	ret = btrfs_writepage_cow_fixup(folio);
 	if (ret == -EAGAIN) {
 		/* Fixup worker will requeue */
@@ -2652,6 +2681,8 @@ retry:
 				continue;
 			}
 
+			/* Locked for writeback; revoke writable mmap PTEs before using the data. */
+			folio_mkclean(folio);
 			ret = extent_writepage(folio, bio_ctrl);
 			if (ret < 0) {
 				done = 1;
