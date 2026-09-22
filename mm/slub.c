@@ -6143,7 +6143,8 @@ restart:
 alloc_empty:
 	local_unlock(&s->cpu_sheaves->lock);
 
-	empty = alloc_empty_sheaf(s, GFP_NOWAIT);
+	/* Don't wake up kswapd, it will cause deadlock under pi_lock */
+	empty = alloc_empty_sheaf(s, __GFP_NOWARN);
 	if (empty)
 		goto got_empty;
 
@@ -6320,7 +6321,8 @@ bool __kfree_rcu_sheaf(struct kmem_cache *s, void *obj)
 
 		local_unlock(&s->cpu_sheaves->lock);
 
-		empty = alloc_empty_sheaf(s, GFP_NOWAIT);
+		/* Don't wake up kswapd, it will cause deadlock under pi_lock */
+		empty = alloc_empty_sheaf(s, __GFP_NOWARN);
 
 		if (!empty)
 			goto fail;
