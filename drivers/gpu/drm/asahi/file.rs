@@ -284,7 +284,7 @@ impl File {
     /// IOCTL: get_param: Get a driver parameter value.
     pub(crate) fn get_params(
         device: &AsahiDevice,
-        data: &uapi::drm_asahi_get_params,
+        data: &mut uapi::drm_asahi_get_params,
         file: &DrmFile,
     ) -> Result<u32> {
         mod_dev_dbg!(device, "[File {}]: IOCTL: get_params\n", file.inner().id);
@@ -539,7 +539,7 @@ impl File {
     /// IOCTL: vm_bind: Map or unmap memory into a Vm.
     pub(crate) fn vm_bind(
         device: &AsahiDevice,
-        data: &uapi::drm_asahi_vm_bind,
+        data: &mut uapi::drm_asahi_vm_bind,
         file: &DrmFile,
     ) -> Result<u32> {
         mod_dev_dbg!(
