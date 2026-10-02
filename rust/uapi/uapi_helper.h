@@ -6,7 +6,7 @@
  * Sorted alphabetically.
  */
 
-#include <uapi/asm-generic/ioctl.h>
+#include <uapi/linux/ioctl.h>
 #include <uapi/drm/asahi_drm.h>
 #include <uapi/drm/drm.h>
 #include <uapi/drm/nova_drm.h>

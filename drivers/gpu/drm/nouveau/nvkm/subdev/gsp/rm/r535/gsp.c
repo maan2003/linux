@@ -737,8 +737,8 @@ r535_gsp_acpi_caps(acpi_handle handle, CAPS_METHOD_DATA *caps)
 	if (!obj)
 		goto done;
 
-	if (WARN_ON(obj->type != ACPI_TYPE_BUFFER) ||
-	    WARN_ON(obj->buffer.length != 4))
+	if (obj->type != ACPI_TYPE_BUFFER ||
+	    obj->buffer.length != 4)
 		goto done;
 
 	caps->status = 0;
@@ -773,8 +773,8 @@ r535_gsp_acpi_jt(acpi_handle handle, JT_METHOD_DATA *jt)
 	if (!obj)
 		goto done;
 
-	if (WARN_ON(obj->type != ACPI_TYPE_BUFFER) ||
-	    WARN_ON(obj->buffer.length != 4))
+	if (obj->type != ACPI_TYPE_BUFFER ||
+	    obj->buffer.length != 4)
 		goto done;
 
 	jt->status = 0;
@@ -861,8 +861,8 @@ r535_gsp_acpi_dod(acpi_handle handle, DOD_METHOD_DATA *dod)
 
 	_DOD = output.pointer;
 
-	if (WARN_ON(_DOD->type != ACPI_TYPE_PACKAGE) ||
-	    WARN_ON(_DOD->package.count > ARRAY_SIZE(dod->acpiIdList)))
+	if (_DOD->type != ACPI_TYPE_PACKAGE ||
+	    _DOD->package.count > ARRAY_SIZE(dod->acpiIdList))
 		return;
 
 	for (int i = 0; i < _DOD->package.count; i++) {
@@ -1748,7 +1748,7 @@ r535_gsp_fini(struct nvkm_gsp *gsp, enum nvkm_suspend_state suspend)
 		sr->sysmemAddrOfSuspendResumeData = gsp->sr.radix3.lvl0.addr;
 		sr->sizeOfSuspendResumeData = len;
 
-		ret = rm->api->fbsr->suspend(gsp, suspend == NVKM_RUNTIME_SUSPEND);
+		ret = rm->api->fbsr->suspend(gsp);
 		if (ret) {
 			nvkm_gsp_mem_dtor(&gsp->sr.meta);
 			nvkm_gsp_radix3_dtor(gsp, &gsp->sr.radix3);
@@ -1760,8 +1760,12 @@ r535_gsp_fini(struct nvkm_gsp *gsp, enum nvkm_suspend_state suspend)
 		 * TODO: Debug the GSP firmware / RPC handling to find out why
 		 * without this Turing (but none of the other architectures)
 		 * ends up resetting all channels after resume.
+		 * Additionally, runtime suspend on other architectures quickly
+		 * becomes unreliable without this sleep. If you're experiencing
+		 * issues with runtime suspend, try bumping this delay up and
+		 * sending a patch if it fixes your GPU.
 		 */
-		msleep(50);
+		msleep(200);
 	}
 
 	ret = r535_gsp_rpc_unloading_guest_driver(gsp, suspend);
