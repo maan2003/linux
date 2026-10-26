@@ -1224,6 +1224,16 @@ static int nft_ct_expect_obj_init(const struct nft_ctx *ctx,
 {
 	struct nft_ct_expect_obj *priv = nft_obj_data(obj);
 
+	/*
+	 * m2sh: custom expectations are disabled. Upstream fixed
+	 * CVE-2026-90237 (stale expectation list entries after ct extension
+	 * reallocation) in 3679da4ad8be with the 7.x refcounted helper
+	 * infrastructure, which 6.18 lacks. No m2sh ruleset uses
+	 * "ct expectation" objects, so refuse to create them.
+	 */
+	if (true)
+		return -EOPNOTSUPP;
+
 	if (!tb[NFTA_CT_EXPECT_L4PROTO] ||
 	    !tb[NFTA_CT_EXPECT_DPORT] ||
 	    !tb[NFTA_CT_EXPECT_TIMEOUT] ||
